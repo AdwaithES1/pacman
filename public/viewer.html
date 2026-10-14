@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#070b18">
+  <title>PAC•TRACK — Live DQN Viewer</title>
+  <link rel="stylesheet" href="/viewer.css">
+</head>
+<body>
+  <main class="viewer">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Pac Track manual game">
+        <span class="brand-mark"><span></span></span>
+        <span><strong>PAC<span class="brand-dot">•</span>TRACK</strong><small>LIVE DQN VIEWER</small></span>
+      </a>
+      <span class="connection-pill"><i id="connectionDot"></i><span id="connectionText">CONNECTING</span></span>
+    </header>
+
+    <section class="intro">
+      <p class="eyebrow">GYMNASIUM ENVIRONMENT · GREEDY CNN-DQN POLICY</p>
+      <h1>Watch the agent <span>play live.</span></h1>
+      <p>The board below renders authoritative snapshots from the isolated game state controlled by the Python Gymnasium environment. Manual play at the home page remains independent.</p>
+    </section>
+
+    <section class="layout">
+      <article class="panel board-panel">
+        <div class="panel-heading">
+          <div><p class="panel-kicker">01 / AGENT-CONTROLLED STATE</p><h2>Pac-Man maze</h2></div>
+          <span id="runStatus" class="status-badge">STOPPED</span>
+        </div>
+        <div class="board-wrap">
+          <canvas id="gameCanvas" width="560" height="620" aria-label="Live Pac-Man game state"></canvas>
+          <div id="emptyBoard" class="empty-board">Press Start to load the checkpoint and begin.</div>
+        </div>
+        <div class="controls">
+          <div class="button-row">
+            <button id="startBtn" class="button button-primary">▶ START</button>
+            <button id="pauseBtn" class="button" disabled>Ⅱ PAUSE</button>
+            <button id="resumeBtn" class="button" disabled>▶ RESUME</button>
+            <button id="stopBtn" class="button button-stop" disabled>■ STOP</button>
+          </div>
+          <label class="speed-control" for="speedInput">
+            <span>PLAYBACK SPEED <strong id="speedValue">500 ms / action</strong></span>
+            <input id="speedInput" type="range" min="100" max="3000" step="100" value="500">
+            <span class="speed-scale"><span>Faster</span><span>Slower</span></span>
+          </label>
+        </div>
+        <p id="message" class="message" role="status">Ready to load the trained policy.</p>
+      </article>
+
+      <aside class="side-column">
+        <article class="panel">
+          <div class="panel-heading"><div><p class="panel-kicker">02 / LIVE METRICS</p><h2>Episode telemetry</h2></div></div>
+          <div class="metrics-grid">
+            <div class="metric"><span>GAME SCORE</span><strong id="scoreValue">0</strong></div>
+            <div class="metric"><span>PELLETS COLLECTED</span><strong id="pelletValue">0 / 0</strong></div>
+            <div class="metric"><span>ENVIRONMENT STEPS</span><strong id="stepValue">0</strong></div>
+            <div class="metric"><span>LIVES</span><strong id="livesValue">—</strong></div>
+            <div class="metric"><span>CURRENT ACTION</span><strong id="actionValue">—</strong></div>
+            <div class="metric"><span>STEP REWARD</span><strong id="rewardValue">0.00</strong></div>
+            <div class="metric"><span>EPISODE RETURN</span><strong id="returnValue">0.00</strong></div>
+            <div class="metric"><span>EPISODE STATUS</span><strong id="episodeValue">NOT STARTED</strong></div>
+          </div>
+        </article>
+        <article class="panel checkpoint-panel">
+          <div class="panel-heading"><div><p class="panel-kicker">03 / MODEL SOURCE</p><h2>Checkpoint</h2></div></div>
+          <code id="checkpointValue"></code>
+          <p>Action selection: greedy <code>argmax Q(s, a)</code> · exploration disabled</p>
+          <p>Observation: <code id="observationValue">(6, 31, 28)</code> · Actions: <code>4</code></p>
+        </article>
+      </aside>
+    </section>
+    <footer>LOCAL PLAYBACK · REAL GYMNASIUM ACTIONS · MANUAL GAME UNAFFECTED</footer>
+  </main>
+  <script src="/viewer.js" defer></script>
+</body>
+</html>

@@ -9,9 +9,15 @@ import requests
 class PacmanGameClient:
     """Small HTTP client for the local Pac-Man training API."""
 
-    def __init__(self, base_url: str | None = None, timeout: float = 5.0) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        timeout: float = 5.0,
+        owner_id: str | None = None,
+    ) -> None:
         self.base_url = (base_url or os.getenv("PACMAN_BASE_URL", "http://127.0.0.1:3000")).rstrip("/")
         self.timeout = timeout
+        self.owner_id = owner_id
         self.session = requests.Session()
 
     def _request(self, method: str, path: str, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -41,6 +47,8 @@ class PacmanGameClient:
 
     def reset(self, max_steps: int = 200) -> dict[str, Any]:
         payload = {"max_steps": int(max_steps)}
+        if self.owner_id is not None:
+            payload["owner_id"] = self.owner_id
         return self._request("POST", "/api/agent/reset", payload)
 
     def step(self, action: int) -> dict[str, Any]:
@@ -48,7 +56,24 @@ class PacmanGameClient:
             raise TypeError("Action must be an integer between 0 and 3.")
         if action < 0 or action > 3:
             raise ValueError("Action must be one of 0=UP, 1=DOWN, 2=LEFT, 3=RIGHT.")
-        return self._request("POST", "/api/agent/step", {"action": action})
+        payload: dict[str, Any] = {"action": action}
+        if self.owner_id is not None:
+            payload["owner_id"] = self.owner_id
+        return self._request("POST", "/api/agent/step", payload)
+
+    def claim(self, owner_id: str) -> dict[str, Any]:
+        if not owner_id:
+            raise ValueError("owner_id must not be empty.")
+        self.owner_id = owner_id
+        return self._request("POST", "/api/agent/claim", {"owner_id": owner_id})
+
+    def release(self) -> dict[str, Any]:
+        if self.owner_id is None:
+            return {"released": False}
+        owner_id = self.owner_id
+        response = self._request("POST", "/api/agent/release", {"owner_id": owner_id})
+        self.owner_id = None
+        return response
 
     def get_state(self) -> dict[str, Any]:
         return self._request("GET", "/api/agent/state")

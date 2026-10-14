@@ -5,7 +5,7 @@
   "description": "Playable classic Pac-Man maze with live coordinate telemetry and a JSON/SSE API.",
   "scripts": {
     "start": "node server.js",
-    "test": "node --check server.js && node --check public/app.js"
+    "test": "node --check server.js && node --check public/app.js && node --check public/movement.js && node --check public/viewer.js && node --test tests/game_movement.test.js"
   },
   "engines": {
     "node": ">=18"

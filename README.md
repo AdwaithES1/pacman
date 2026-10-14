@@ -26,6 +26,8 @@ CNN DQN Agent + Replay Buffer
 Implemented this phase:
 - JavaScript server exposes maze metadata and live state snapshots
 - Local agent-control endpoints for reset and step
+- A dedicated live DQN viewer that renders the exact agent-controlled Gymnasium state
+- Exclusive ownership for live playback sessions, released on Stop or episode completion
 - Python HTTP client for the game server
 - Gymnasium environment with a 6-channel 28x31 observation tensor
 - Reward calculation helpers
@@ -44,9 +46,13 @@ pacman-tracker/
 ├── public/
 │   ├── app.js
 │   ├── index.html
-│   └── styles.css
+│   ├── styles.css
+│   ├── viewer.html
+│   ├── viewer.css
+│   └── viewer.js
 ├── rl/
 │   ├── __init__.py
+│   ├── live_viewer.py
 │   ├── agents/
 │   │   ├── dqn.py
 │   │   └── replay_buffer.py
@@ -64,6 +70,7 @@ pacman-tracker/
 ├── tests/
 │   ├── test_environment.py
 │   ├── test_game_integration.py
+│   ├── test_live_viewer.py
 │   └── test_rewards.py
 ├── README.md
 ├── package.json
@@ -172,6 +179,8 @@ Action mapping:
 
 The server validates action values and rejects invalid requests with an HTTP 400 response.
 
+Live playback claims exclusive ownership of the agent state with `POST /api/agent/claim` and releases it with `POST /api/agent/release`. Other agent clients cannot reset or step that state while it is claimed. Manual play continues to use its independent browser-side game state.
+
 ## Observation format
 
 The Python environment uses a deterministic 6-channel tensor shaped `(6, 31, 28)`. It reads the static wall map from `/api/maze` and the live pellet/entity positions from the agent state:
@@ -222,11 +231,55 @@ The environment does not automatically reset after a terminal state; the trainin
 
 DQN treats a true win or game-over as terminal and does not bootstrap its target from the next observation. A max-step truncation is not terminal: the valid final observation returned by the environment is stored before reset and the learner bootstraps from it. This is the time-limit policy used consistently by the replay buffer, update, and training loop.
 
+## Live DQN Viewer
+
+The viewer loads the existing CNN checkpoint on Start, selects actions greedily with `argmax(Q(s, a))` (`explore=False`), then sends those actions through the existing Gymnasium environment and `/api/agent/*` game-server endpoints. It displays state snapshots returned by that same environment; it does not animate a separate policy or accept checkpoint paths from the browser. Checkpoint paths supplied at server startup are resolved and restricted to files inside this project.
+
+The manual page at `http://127.0.0.1:3000/` is unchanged. The viewer uses its own page and backend. In this checkout the active Python environment is at `..\..\.venv` relative to the project root.
+
+1. In the first PowerShell window, start the JavaScript game server:
+
+   ```powershell
+   Set-Location 'D:\sem7\DL\Project\pacman-live-tracker\pacman-tracker'
+   node server.js
+   ```
+
+2. In a second PowerShell window, start playback using the trained checkpoint:
+
+   ```powershell
+   Set-Location 'D:\sem7\DL\Project\pacman-live-tracker\pacman-tracker'
+   & '..\..\.venv\Scripts\python.exe' -m rl.live_viewer `
+     --checkpoint 'runs\learning-seed73-20261014\pacman-dqn-20261014T133045092713Z-seed73-2ae528fa\checkpoint.pt' `
+     --game-server 'http://127.0.0.1:3000' `
+     --host 127.0.0.1 `
+     --port 3001 `
+     --speed-ms 500
+   ```
+
+3. Open the dedicated viewer at **http://127.0.0.1:3001/viewer**. Press **Start** to load the checkpoint and begin a fresh episode. Use **Pause** and **Resume** to preserve and continue that episode.
+
+4. Adjust the **Playback speed** slider in the page to set the delay between agent actions (100–3000 ms; the default is 500 ms). A slower interval makes each environment action easier to see. It can also be set when starting the backend with `--speed-ms`.
+
+5. Press **Stop** to halt action execution and release the exclusive agent session. When finished, press Ctrl+C in the playback-backend window and then in the game-server window. Episode completion also stops action execution and releases the session; press Start to load a new episode.
+
+The viewer reports game score, pellets collected, environment steps, the selected action, lives, step reward, cumulative episode return, and episode status separately. The board refreshes from environment snapshots after actions; it does not interpolate motion between them.
+
+The existing Gymnasium agent API is a separate, discrete training-state model in the JavaScript server, not the manual page's continuous browser simulation. The viewer deliberately renders the exact state used by the checkpoint's environment rather than controlling or imitating the manual game. The game's current state model is not ROM-accurate; see [Current limitations](#current-limitations).
+
 ## Running tests
 
 ```powershell
 python -m pytest -q
 ```
+
+The focused live-viewer/integration tests can also be run with:
+
+```powershell
+python -m pytest tests\test_game_integration.py tests\test_live_viewer.py -q
+npm test
+```
+
+The Python integration tests verify that agent-controlled ghost snapshots remain on ghost-walkable maze tiles. `npm test` also checks the normal browser game's shared ghost movement guard against wall and ghost-house tiles.
 
 or use the Windows launcher:
 

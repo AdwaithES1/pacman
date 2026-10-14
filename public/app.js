@@ -76,10 +76,7 @@
   }
 
   function canEnter(x, y, type) {
-    if (y < 0 || y >= HEIGHT || x < 0 || x >= WIDTH) return false;
-    const mask = type === 'ghost' ? ghostWalkableRows : playerWalkableRows;
-    const value = mask[y]?.[x] || '0';
-    return value === '1' || (type === 'ghost' && value === '2');
+    return PacmanMovement.canEnterTile(x, y, type, WIDTH, HEIGHT, playerWalkableRows, ghostWalkableRows);
   }
 
   function normalizeCell(x, y) {
@@ -206,10 +203,7 @@
   }
 
   function actorStepTarget(actor, direction) {
-    const next = destination(actor.tileX, actor.tileY, direction);
-    if (!next || !canEnter(next.x, next.y, actor.role === 'ghost' ? 'ghost' : 'player')) return null;
-    const isWarp = next.y === 14 && Math.abs(next.x - actor.tileX) > 1;
-    return { ...next, warp: isWarp };
+    return PacmanMovement.actorStepTarget(actor, direction, destination, canEnter);
   }
 
   function nextPlayerDirection() {

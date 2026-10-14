@@ -22,11 +22,17 @@ class PacmanEnv(gym.Env):
         3: "RIGHT",
     }
 
-    def __init__(self, base_url: str | None = None, timeout: float = 5.0, max_steps: int = 200) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        timeout: float = 5.0,
+        max_steps: int = 200,
+        owner_id: str | None = None,
+    ) -> None:
         self.base_url = base_url
         self.timeout = timeout
         self.max_steps = max_steps
-        self.game_client = GameClient(base_url=base_url, timeout=timeout)
+        self.game_client = GameClient(base_url=base_url, timeout=timeout, owner_id=owner_id)
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Box(
             low=0.0,

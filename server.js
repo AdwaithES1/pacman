@@ -192,6 +192,7 @@ function cloneAgentState() {
 
 let agentState = cloneAgentState();
 let agentControlLock = false;
+let agentOwner = null;
 
 function clampTilePosition(x, y) {
   const nextX = Number.isInteger(x) ? x : Math.round(x);
@@ -204,6 +205,12 @@ function clampTilePosition(x, y) {
 function isWallAt(x, y) {
   if (y < 0 || y >= MAZE_META.height || x < 0 || x >= MAZE_META.width) return true;
   return MAZE_ROWS[y][x] === '#';
+}
+
+function isGhostWalkableAt(x, y) {
+  if (y < 0 || y >= MAZE_META.height || x < 0 || x >= MAZE_META.width) return false;
+  const tile = GHOST_WALKABLE_ROWS[y][x];
+  return tile === '1' || tile === '2';
 }
 
 function isPelletAt(grid, x, y) {
@@ -280,17 +287,24 @@ function applyAgentAction(state, action) {
 
   state.ghosts = state.ghosts.map((ghost, index) => {
     const shift = index % 2 === 0 ? 1 : -1;
-    const nextGhostX = clampTilePosition(ghost.x + (ghost.direction === 'left' ? -1 : ghost.direction === 'right' ? 1 : 0), ghost.y + (ghost.direction === 'up' ? -1 : ghost.direction === 'down' ? 1 : 0)).x;
-    const nextGhostY = clampTilePosition(ghost.x + (ghost.direction === 'left' ? -1 : ghost.direction === 'right' ? 1 : 0), ghost.y + (ghost.direction === 'up' ? -1 : ghost.direction === 'down' ? 1 : 0)).y;
-    const candidateX = clampTilePosition(ghost.x + shift * (Math.abs(state.pacman.x - ghost.x) >= Math.abs(state.pacman.y - ghost.y) ? (state.pacman.x >= ghost.x ? 1 : -1) : 0), ghost.y + shift * (Math.abs(state.pacman.y - ghost.y) > Math.abs(state.pacman.x - ghost.x) ? (state.pacman.y >= ghost.y ? 1 : -1) : 0)).x;
-    const candidateY = clampTilePosition(ghost.x + shift * (Math.abs(state.pacman.x - ghost.x) >= Math.abs(state.pacman.y - ghost.y) ? (state.pacman.x >= ghost.x ? 1 : -1) : 0), ghost.y + shift * (Math.abs(state.pacman.y - ghost.y) > Math.abs(state.pacman.x - ghost.x) ? (state.pacman.y >= ghost.y ? 1 : -1) : 0)).y;
-    const chosenX = !isWallAt(candidateX, ghost.y) ? candidateX : nextGhostX;
-    const chosenY = !isWallAt(ghost.x, candidateY) ? candidateY : nextGhostY;
+    const nextGhost = clampTilePosition(
+      ghost.x + (ghost.direction === 'left' ? -1 : ghost.direction === 'right' ? 1 : 0),
+      ghost.y + (ghost.direction === 'up' ? -1 : ghost.direction === 'down' ? 1 : 0),
+    );
+    const candidate = clampTilePosition(
+      ghost.x + shift * (Math.abs(state.pacman.x - ghost.x) >= Math.abs(state.pacman.y - ghost.y) ? (state.pacman.x >= ghost.x ? 1 : -1) : 0),
+      ghost.y + shift * (Math.abs(state.pacman.y - ghost.y) > Math.abs(state.pacman.x - ghost.x) ? (state.pacman.y >= ghost.y ? 1 : -1) : 0),
+    );
+    const chosen = isGhostWalkableAt(candidate.x, candidate.y)
+      ? candidate
+      : isGhostWalkableAt(nextGhost.x, nextGhost.y)
+        ? nextGhost
+        : { x: ghost.x, y: ghost.y };
     return {
       ...ghost,
-      x: chosenX,
-      y: chosenY,
-      tile: { x: chosenX, y: chosenY },
+      x: chosen.x,
+      y: chosen.y,
+      tile: { x: chosen.x, y: chosen.y },
       direction: ghost.direction,
       state: state.frightened ? 'frightened' : 'normal',
     };
@@ -462,6 +476,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && pathname === '/api/agent/reset') {
     try {
       const payload = await readJson(req).catch(() => ({}));
+      if (agentOwner && payload.owner_id !== agentOwner) {
+        json(res, 409, { error: 'Agent state is exclusively owned by another session.' });
+        return;
+      }
       const requestedMaxSteps = Number(payload.max_steps ?? payload.maxSteps ?? 200);
       agentState = cloneAgentState();
       if (Number.isFinite(requestedMaxSteps) && requestedMaxSteps > 0) agentState.maxSteps = requestedMaxSteps;
@@ -480,8 +498,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
-      agentControlLock = true;
       const payload = await readJson(req).catch(() => ({}));
+      if (agentOwner && payload.owner_id !== agentOwner) {
+        json(res, 409, { error: 'Agent state is exclusively owned by another session.' });
+        return;
+      }
+      agentControlLock = true;
       const action = Number(payload.action ?? payload.step ?? payload.actionIndex);
       if (!Number.isInteger(action) || action < 0 || action > 3) {
         json(res, 400, { error: 'Action must be an integer between 0 and 3. Mapping: 0=UP, 1=DOWN, 2=LEFT, 3=RIGHT.' });
@@ -497,6 +519,43 @@ const server = http.createServer(async (req, res) => {
       json(res, error.message === 'Payload too large' ? 413 : 400, { error: error.message || 'Could not read step payload' });
     } finally {
       agentControlLock = false;
+    }
+    return;
+  }
+  if (req.method === 'POST' && pathname === '/api/agent/claim') {
+    try {
+      const payload = await readJson(req);
+      const ownerId = payload.owner_id;
+      if (typeof ownerId !== 'string' || ownerId.length < 1 || ownerId.length > 128) {
+        json(res, 400, { error: 'owner_id must be a non-empty string of at most 128 characters.' });
+        return;
+      }
+      if (agentControlLock || (agentOwner && agentOwner !== ownerId)) {
+        json(res, 409, { error: 'Agent state is already in use by another session.' });
+        return;
+      }
+      agentOwner = ownerId;
+      json(res, 200, { claimed: true });
+    } catch (error) {
+      json(res, error.message === 'Payload too large' ? 413 : 400, { error: error.message || 'Could not read claim payload' });
+    }
+    return;
+  }
+  if (req.method === 'POST' && pathname === '/api/agent/release') {
+    try {
+      const payload = await readJson(req);
+      if (agentControlLock) {
+        json(res, 409, { error: 'An agent step is still in progress.' });
+        return;
+      }
+      if (!agentOwner || payload.owner_id !== agentOwner) {
+        json(res, 409, { error: 'This session does not own the agent state.' });
+        return;
+      }
+      agentOwner = null;
+      json(res, 200, { released: true });
+    } catch (error) {
+      json(res, error.message === 'Payload too large' ? 413 : 400, { error: error.message || 'Could not read release payload' });
     }
     return;
   }
