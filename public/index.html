@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#070b18">
+  <title>PAC•TRACK — Live Maze Telemetry</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Pac Track home">
+        <span class="brand-mark"><span></span></span>
+        <span><strong>PAC<span class="brand-dot">•</span>TRACK</strong><small>ARCADE TELEMETRY SYSTEM</small></span>
+      </a>
+      <div class="topbar-right">
+        <span class="version-tag">CLASSIC BOARD / 28 × 31</span>
+        <span class="connection-pill"><i id="connectionDot"></i><span id="connectionText">CONNECTING API</span></span>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro-row">
+        <div>
+          <p class="eyebrow">REAL-TIME GAME STATE · TILE-ACCURATE TRACKING</p>
+          <h1>Every move has a <span>coordinate.</span></h1>
+          <p class="intro-copy">Play the classic maze while the game engine streams Pac-Man, ghosts, pellets and events to a live JSON API.</p>
+        </div>
+        <div class="play-status"><span class="live-pulse"></span><span id="runStatus">SIMULATION RUNNING</span><small id="clockLabel">FRAME 000000</small></div>
+      </section>
+
+      <section class="metrics-grid" aria-label="Game metrics">
+        <article class="metric-card score-card"><div class="metric-label"><span class="metric-icon">✦</span> SCORE</div><div class="metric-value" id="scoreValue">000000</div><div class="metric-foot">CURRENT RUN</div></article>
+        <article class="metric-card"><div class="metric-label"><span class="metric-icon pellet-icon">●</span> PELLETS LEFT</div><div class="metric-value" id="pelletValue">000</div><div class="metric-foot"><span id="clearedValue">0%</span> OF MAZE CLEARED</div><div class="progress-track"><div id="pelletProgress" class="progress-fill"></div></div></article>
+        <article class="metric-card"><div class="metric-label"><span class="metric-icon heart-icon">♥</span> LIVES</div><div class="metric-value" id="livesValue">03</div><div class="metric-foot" id="levelValue">LEVEL 01</div></article>
+        <article class="metric-card"><div class="metric-label"><span class="metric-icon">◷</span> API TICK</div><div class="metric-value"><span id="apiHz">—</span><small> Hz</small></div><div class="metric-foot">POST /API/STATE</div></article>
+      </section>
+
+      <section class="main-grid">
+        <article class="panel game-panel">
+          <div class="panel-heading game-heading">
+            <div><p class="panel-kicker">01 / LIVE SIMULATION</p><h2>Original maze layout</h2></div>
+            <div class="game-actions">
+              <button class="icon-button" id="gridToggle" title="Toggle coordinate grid" aria-pressed="false"><span>⌗</span> COORDS</button>
+              <button class="icon-button" id="trailToggle" title="Toggle entity trails" aria-pressed="false"><span>⌁</span> TRAILS</button>
+            </div>
+          </div>
+          <div class="board-wrap">
+            <canvas id="gameCanvas" width="560" height="620" aria-label="Pac-Man game board"></canvas>
+            <div class="board-overlay" id="startOverlay" hidden><div class="overlay-card"><span class="overlay-eyebrow">READY PLAYER</span><strong id="overlayTitle">PAUSED</strong><span id="overlaySub">Press P or RESUME to continue.</span></div></div>
+          </div>
+          <div class="game-footer">
+            <div class="control-hint"><span class="keycap">↑</span><span class="keycap">←</span><span class="keycap">↓</span><span class="keycap">→</span><span>MOVE</span></div>
+            <div class="control-hint"><span class="keycap">P</span><span>PAUSE</span><span class="keycap">R</span><span>RESTART</span></div>
+            <div class="game-buttons"><button id="pauseBtn" class="button button-quiet">Ⅱ PAUSE</button><button id="restartBtn" class="button button-primary">↻ RESTART</button></div>
+          </div>
+        </article>
+
+        <aside class="side-column">
+          <article class="panel entities-panel">
+            <div class="panel-heading"><div><p class="panel-kicker">02 / POSITION STREAM</p><h2>Entity telemetry</h2></div><span class="stream-indicator"><i></i> LIVE</span></div>
+            <div class="table-wrap">
+              <table class="entity-table"><thead><tr><th>ENTITY</th><th>TILE (X, Y)</th><th>HEADING</th></tr></thead><tbody id="entityRows"></tbody></table>
+            </div>
+            <div class="subpanel-stats"><div><span>PELLET COORDINATES</span><strong id="pelletCoord">—</strong></div><div><span>FRIGHTENED MODE</span><strong id="frightenedValue">OFF</strong></div></div>
+          </article>
+
+          <article class="panel events-panel">
+            <div class="panel-heading"><div><p class="panel-kicker">03 / EVENT BUS</p><h2>Recent events</h2></div><span class="event-count" id="eventCount">00</span></div>
+            <div class="event-list" id="eventList"><div class="empty-state">Waiting for game events…</div></div>
+          </article>
+
+          <article class="panel api-panel">
+            <div class="panel-heading"><div><p class="panel-kicker">04 / DEVELOPER ACCESS</p><h2>Live API</h2></div><span class="api-symbol">{ }</span></div>
+            <div class="endpoint-list">
+              <button class="endpoint" data-endpoint="/api/state"><span class="method get">GET</span><code>/api/state</code><span class="copy-glyph">↗</span></button>
+              <button class="endpoint" data-endpoint="/api/maze"><span class="method get">GET</span><code>/api/maze</code><span class="copy-glyph">↗</span></button>
+              <button class="endpoint" data-endpoint="/api/events"><span class="method get">GET</span><code>/api/events</code><span class="copy-glyph">↗</span></button>
+              <button class="endpoint" data-endpoint="/api/stream"><span class="method sse">SSE</span><code>/api/stream</code><span class="copy-glyph">↗</span></button>
+            </div>
+            <div class="api-footer"><span>0-BASED TILE COORDINATES</span><button id="viewJsonBtn">VIEW JSON ↗</button></div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="bottom-grid">
+        <article class="panel coordinate-panel">
+          <div class="panel-heading"><div><p class="panel-kicker">05 / COORDINATE CONTRACT</p><h2>World → tile → pixel</h2></div></div>
+          <div class="coordinate-flow">
+            <div class="coord-stage"><span class="stage-num">01</span><strong>Tile grid</strong><code id="tileExample">x: 13 · y: 23</code><small>28 columns × 31 rows</small></div><span class="flow-arrow">→</span>
+            <div class="coord-stage"><span class="stage-num">02</span><strong>Continuous position</strong><code id="floatExample">x: 13.000 · y: 23.000</code><small>Updated every simulation frame</small></div><span class="flow-arrow">→</span>
+            <div class="coord-stage"><span class="stage-num">03</span><strong>Original maze pixels</strong><code id="pixelExample">x: 108 · y: 188</code><small>8 px per source tile</small></div>
+          </div>
+        </article>
+        <article class="panel json-panel" id="jsonPanel">
+          <div class="panel-heading"><div><p class="panel-kicker">06 / SNAPSHOT</p><h2>Current state payload</h2></div><button class="text-button" id="copyJsonBtn">COPY JSON</button></div>
+          <pre id="jsonPreview">Connecting to local API…</pre>
+        </article>
+      </section>
+
+      <footer class="page-footer"><span>LOCAL SIMULATION · NO SCREEN-SCRAPING REQUIRED</span><span>ARROWS / WASD TO MOVE <b>•</b> P PAUSES <b>•</b> R RESTARTS</span></footer>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

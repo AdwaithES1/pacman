@@ -1,0 +1,46 @@
+# Node.js dependencies and debug logs
+node_modules/
+npm-debug.log*
+
+# Python environments and bytecode
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Test, coverage, and type-checker caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Build and packaging outputs
+build/
+dist/
+*.egg-info/
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Training, evaluation, comparison, and report artifacts
+runs/
+evaluations/
+comparisons/
+reports/
+*.pt
+*.pth
+*.ckpt
+
+# OS-generated files
+.DS_Store
+Thumbs.db

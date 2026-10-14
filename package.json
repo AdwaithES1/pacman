@@ -1,0 +1,13 @@
+{
+  "name": "pacman-live-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playable classic Pac-Man maze with live coordinate telemetry and a JSON/SSE API.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --check server.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
